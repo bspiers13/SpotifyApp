@@ -154,15 +154,14 @@ def calculate_weighted_range(input_word, word_dict, model):
         return None
 
 
-def main():
+def analyse_input(input):
+    # Split the input into individual words
+    input_words = input.split()
+
+    print("Loading word2vec model...")
+
     # Load word2vec model
     word2vec = api.load("word2vec-google-news-300")
-
-    # Ask user for input
-    user_input = input("Please enter a mood or genre: ").lower()
-
-    # Split the input into individual words
-    input_words = user_input.split()
 
     # Initialize variables to aggregate the weighted ranges
     total_weighted_range = [0, 0, 0, 0]
@@ -177,25 +176,26 @@ def main():
                 total_weighted_range[i] + weighted_range[i] for i in range(4)
             ]
 
-    # Calculate the average weighted range if we processed any words
+    # Calculate the average weighted range
     if total_similarity > 0:
         average_weighted_range = [
             round(total_weighted_range[i] / total_similarity, 2) for i in range(4)
         ]
-        valence_range = average_weighted_range[
-            :2
-        ]  # First two values: valence_min, valence_max
-        tempo_range = average_weighted_range[
-            2:
-        ]  # Last two values: tempo_min, tempo_max
-        print(
-            f"Valence range for '{user_input}': {valence_range[0]} to {valence_range[1]}"
-        )
-        print(
-            f"Tempo range for '{user_input}': {tempo_range[0]} to {tempo_range[1]} BPM"
-        )
+        # First two values: valence_min, valence_max
+        valence_range = average_weighted_range[:2]
+        # Last two values: tempo_min, tempo_max
+        tempo_range = average_weighted_range[2:]
+        print(f"Valence range for '{input}': {valence_range[0]} to {valence_range[1]}")
+        print(f"Tempo range for '{input}': {tempo_range[0]} to {tempo_range[1]} BPM")
     else:
-        print(f"No information found for '{user_input}'")
+        print(f"No information found for '{input}'")
+
+
+def main():
+    # Ask user for input
+    user_input = input("Please enter a mood or genre: ").lower()
+
+    analyse_input(user_input)
 
 
 if __name__ == "__main__":
