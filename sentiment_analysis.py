@@ -159,15 +159,35 @@ def main():
     word2vec = api.load("word2vec-google-news-300")
 
     # Ask user for input
-    user_input = input("Please enter a mood or genre: ")
+    user_input = input("Please enter a mood or genre: ").lower()
 
-    # Get valence and tempo ranges based on the input
-    weighted_range = calculate_weighted_range(user_input, combined_dict, word2vec)
+    # Split the input into individual words
+    input_words = user_input.split()
 
-    # Print results
-    if weighted_range:
-        valence_range = weighted_range[:2]  # First two values: valence_min, valence_max
-        tempo_range = weighted_range[2:]  # Last two values: tempo_min, tempo_max
+    # Initialize variables to aggregate the weighted ranges
+    total_weighted_range = [0, 0, 0, 0]
+    total_similarity = 0
+
+    # Process each word in the input
+    for word in input_words:
+        weighted_range = calculate_weighted_range(word, combined_dict, word2vec)
+        if weighted_range:
+            total_similarity += 1
+            total_weighted_range = [
+                total_weighted_range[i] + weighted_range[i] for i in range(4)
+            ]
+
+    # Calculate the average weighted range if we processed any words
+    if total_similarity > 0:
+        average_weighted_range = [
+            round(total_weighted_range[i] / total_similarity, 2) for i in range(4)
+        ]
+        valence_range = average_weighted_range[
+            :2
+        ]  # First two values: valence_min, valence_max
+        tempo_range = average_weighted_range[
+            2:
+        ]  # Last two values: tempo_min, tempo_max
         print(
             f"Valence range for '{user_input}': {valence_range[0]} to {valence_range[1]}"
         )
