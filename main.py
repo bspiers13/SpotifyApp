@@ -33,12 +33,16 @@ def submit_playlists():
     theme = request.form.get("theme", "")
 
     # Fetch all playlists once to avoid redundant fetching
+    print("Fetching playlists...")
     playlists = fetch_playlists(sp)
+    print("Playlists fetched!")
 
     # Process selected playlists
+    print("Processing playlists...")
     all_selected_songs, filtered_songs = process_selected_playlists(
         sp, selected_playlists, playlists
     )
+    print("Playlists fetched!")
 
     # Return the updated page with the songs and theme
     return render_template(
@@ -65,8 +69,8 @@ def submit():
     return render_template("index.html", songs=all_songs)
 
 
+# Load environment variables from .env file
 def load_environment_variables():
-    # Load environment variables from .env file
     if not load_dotenv():
         print(
             "Error: Could not load the environment variables. Please ensure you have a .env file with your credentials."
@@ -84,9 +88,10 @@ def load_environment_variables():
 
     return CLIENT_ID, CLIENT_SECRET
 
+    # Authenticate with Spotify
+
 
 def authenticate_spotify(client_id, client_secret):
-    # Authenticate with Spotify
     REDIRECT_URI = "http://localhost:8888/callback"
     SCOPE = "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state"
 
@@ -108,8 +113,9 @@ def authenticate_spotify(client_id, client_secret):
     return sp
 
 
+# Fetch the user's liked songs
 def fetch_liked_songs(sp):
-    # Fetch the user's liked songs
+
     results = sp.current_user_saved_tracks(limit=50)
     liked_songs = []
     for item in results["items"]:
@@ -126,6 +132,7 @@ def fetch_liked_songs(sp):
     return liked_songs
 
 
+# Fetch the selected playlists
 def fetch_playlists(sp):
     playlists = []
     results = sp.current_user_playlists(limit=50)
@@ -148,8 +155,8 @@ def fetch_playlists(sp):
     return playlist_data
 
 
+# Fetch all tracks from a specific playlist.
 def fetch_playlist_tracks(sp, playlist_id):
-    # Fetch all tracks from a specific playlist.
     tracks = []
     results = sp.playlist_tracks(playlist_id, limit=100)
     tracks.extend(results["items"])
@@ -162,8 +169,8 @@ def fetch_playlist_tracks(sp, playlist_id):
     return tracks
 
 
+# Fetch and return all tracks from all playlists
 def fetch_all_playlist_tracks(sp):
-    # Fetch and return all tracks from all playlists
     playlists = fetch_playlists(sp)
     all_tracks = []
     for playlist in playlists:
@@ -176,12 +183,8 @@ def fetch_all_playlist_tracks(sp):
     return all_tracks
 
 
+# Processes selected playlists by combining the process songs funcs, removing any duplicates then filters (not yet implemented properly, though would have worked right now with spotify's audio_features)
 def process_selected_playlists(sp, selected_playlists, playlists):
-    """
-    Processes the selected playlists and returns two lists:
-    - All selected songs
-    - Filtered songs that fit a specific theme
-    """
     unique_song_ids = set()
     all_selected_songs = []
     filtered_songs = []
@@ -202,21 +205,17 @@ def process_selected_playlists(sp, selected_playlists, playlists):
     return all_selected_songs, filtered_songs
 
 
+# Processes songs from Liked Songs to remove duplicates
 def process_liked_songs(sp, unique_song_ids, all_selected_songs, filtered_songs):
-    """
-    Processes the user's liked songs, adding them to the selected songs and filtered list if they fit a theme.
-    """
     liked_songs = fetch_liked_songs(sp)
     for track in liked_songs:
         add_unique_song(track, unique_song_ids, all_selected_songs, filtered_songs, sp)
 
 
+# Processes songs from selected playlists to remove duplicates
 def process_playlist_songs(
     sp, playlist_id, playlists, unique_song_ids, all_selected_songs, filtered_songs
 ):
-    """
-    Processes songs from a specific playlist, adding them to the selected songs and filtered list if they fit a theme.
-    """
     playlist = next((p for p in playlists if p["id"] == playlist_id), None)
     if playlist:
         playlist_tracks = fetch_playlist_tracks(sp, playlist["id"])
@@ -227,10 +226,8 @@ def process_playlist_songs(
             )
 
 
+# Checks if song is a duplicate, if not it adds it to a list
 def add_unique_song(track, unique_song_ids, all_selected_songs, filtered_songs, sp):
-    """
-    Adds a song to the selected songs and filtered list if it is unique and fits the theme.
-    """
     if track["id"] not in unique_song_ids:
         unique_song_ids.add(track["id"])
         all_selected_songs.append(f"{track['name']} by {track['artists'][0]['name']}")
