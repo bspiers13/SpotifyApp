@@ -3,6 +3,8 @@ from spotipy.oauth2 import SpotifyOAuth
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, render_template
+from textblob import TextBlob
+from sentiment_analysis import analyse_input
 
 app = Flask(__name__)
 
@@ -27,49 +29,24 @@ def submit_playlists():
     # Retrieve selected playlists from the form
     selected_playlists = request.form.getlist("selected_playlists")
 
-    # Set to track unique song IDs
-    unique_song_ids = set()
-    all_selected_songs = []
+    # Retrieve the theme entered by the user
+    theme = request.form.get("theme", "")
 
     # Fetch all playlists once to avoid redundant fetching
     playlists = fetch_playlists(sp)
 
-    for playlist_id in selected_playlists:
-        if playlist_id == "liked_songs":
-            # Fetch liked songs if "Liked Songs" was selected
-            liked_songs = fetch_liked_songs(sp)
-            for song in liked_songs:
-                if song["id"] not in unique_song_ids:
-                    unique_song_ids.add(song["id"])
-                    all_selected_songs.append(
-                        f"{song['name']} by {song['artists'][0]['name']}"
-                    )
-                else:
-                    print("Doubled song: ", song)
-        else:
-            # Fetch songs from a specific playlist
-            playlist = next((p for p in playlists if p["id"] == playlist_id), None)
-            if playlist:
-                playlist_tracks = fetch_playlist_tracks(sp, playlist["id"])
-                for item in playlist_tracks:
-                    track = item["track"]
-                    # Check if track ID has already been collected - if so, this is a double
-                    if track["id"] not in unique_song_ids:
-                        unique_song_ids.add(track["id"])
-                        all_selected_songs.append(
-                            f"{track['name']} by {track['artists'][0]['name']}"
-                        )
-                    else:
-                        print("Doubled song: ", track["name"])
+    # Process selected playlists
+    all_selected_songs, filtered_songs = process_selected_playlists(
+        sp, selected_playlists, playlists
+    )
 
-    # print("Fetched songs from selected playlists:", all_selected_songs)
-
-    # Return the updated page with the songs
+    # Return the updated page with the songs and theme
     return render_template(
         "index.html",
         playlists=playlists,
         selected=selected_playlists,
         songs=all_selected_songs,
+        theme=theme,  # Pass the theme to the template
     )
 
 
@@ -111,7 +88,7 @@ def load_environment_variables():
 def authenticate_spotify(client_id, client_secret):
     # Authenticate with Spotify
     REDIRECT_URI = "http://localhost:8888/callback"
-    SCOPE = "user-library-read playlist-read-private playlist-read-collaborative"
+    SCOPE = "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state"
 
     # Get the directory where the app.py script is located
     app_directory = os.path.dirname(os.path.abspath(__file__))
@@ -140,6 +117,12 @@ def fetch_liked_songs(sp):
         liked_songs.append(
             {"id": track["id"], "name": track["name"], "artists": track["artists"]}
         )
+
+    # Handle pagination if there are more than 100 tracks
+    while results["next"]:
+        results = sp.next(results)
+        liked_songs.extend(results["items"])
+
     return liked_songs
 
 
@@ -191,6 +174,66 @@ def fetch_all_playlist_tracks(sp):
                 {"id": track["id"], "name": track["name"], "artists": track["artists"]}
             )
     return all_tracks
+
+
+def process_selected_playlists(sp, selected_playlists, playlists):
+    """
+    Processes the selected playlists and returns two lists:
+    - All selected songs
+    - Filtered songs that fit a specific theme
+    """
+    unique_song_ids = set()
+    all_selected_songs = []
+    filtered_songs = []
+
+    for playlist_id in selected_playlists:
+        if playlist_id == "liked_songs":
+            process_liked_songs(sp, unique_song_ids, all_selected_songs, filtered_songs)
+        else:
+            process_playlist_songs(
+                sp,
+                playlist_id,
+                playlists,
+                unique_song_ids,
+                all_selected_songs,
+                filtered_songs,
+            )
+
+    return all_selected_songs, filtered_songs
+
+
+def process_liked_songs(sp, unique_song_ids, all_selected_songs, filtered_songs):
+    """
+    Processes the user's liked songs, adding them to the selected songs and filtered list if they fit a theme.
+    """
+    liked_songs = fetch_liked_songs(sp)
+    for track in liked_songs:
+        add_unique_song(track, unique_song_ids, all_selected_songs, filtered_songs, sp)
+
+
+def process_playlist_songs(
+    sp, playlist_id, playlists, unique_song_ids, all_selected_songs, filtered_songs
+):
+    """
+    Processes songs from a specific playlist, adding them to the selected songs and filtered list if they fit a theme.
+    """
+    playlist = next((p for p in playlists if p["id"] == playlist_id), None)
+    if playlist:
+        playlist_tracks = fetch_playlist_tracks(sp, playlist["id"])
+        for item in playlist_tracks:
+            track = item["track"]
+            add_unique_song(
+                track, unique_song_ids, all_selected_songs, filtered_songs, sp
+            )
+
+
+def add_unique_song(track, unique_song_ids, all_selected_songs, filtered_songs, sp):
+    """
+    Adds a song to the selected songs and filtered list if it is unique and fits the theme.
+    """
+    if track["id"] not in unique_song_ids:
+        unique_song_ids.add(track["id"])
+        all_selected_songs.append(f"{track['name']} by {track['artists'][0]['name']}")
 
 
 if __name__ == "__main__":
