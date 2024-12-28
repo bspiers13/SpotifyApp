@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, request, render_template
 from textblob import TextBlob
-from sentiment_analysis import analyse_input
+from sentiment_analysis import analyse_input, filter_song, set_model
 
 app = Flask(__name__)
 
@@ -23,6 +23,9 @@ def fetch_playlists_route():
     return render_template("index.html", playlists=fetched_playlists)
 
 
+theme_analysis = None
+
+
 # Retrieve selected playlists from HTML, then collect songs from each playlist from Spotify
 @app.route("/submit-playlists", methods=["POST"])
 def submit_playlists():
@@ -31,6 +34,10 @@ def submit_playlists():
 
     # Retrieve the theme entered by the user
     theme = request.form.get("theme", "")
+
+    # Analyse theme
+    print("Analysing input")
+    analyse_input(theme, set_model())
 
     # Fetch all playlists once to avoid redundant fetching
     print("Fetching playlists...")
@@ -42,14 +49,22 @@ def submit_playlists():
     all_selected_songs, filtered_songs = process_selected_playlists(
         sp, selected_playlists, playlists
     )
-    print("Playlists fetched!")
+    print("Playlists processed!")
+
+    new_playlist(sp, theme, filtered_songs)
+
+    all_selected_songs_text_formatted = []
+    for track in all_selected_songs:
+        all_selected_songs_text_formatted.append(
+            f"{track['name']} by {track['artists'][0]['name']}"
+        )
 
     # Return the updated page with the songs and theme
     return render_template(
         "index.html",
         playlists=playlists,
         selected=selected_playlists,
-        songs=all_selected_songs,
+        songs=all_selected_songs_text_formatted,
         theme=theme,  # Pass the theme to the template
     )
 
@@ -93,7 +108,7 @@ def load_environment_variables():
 
 def authenticate_spotify(client_id, client_secret):
     REDIRECT_URI = "http://localhost:8888/callback"
-    SCOPE = "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state"
+    SCOPE = "user-library-read playlist-read-private playlist-read-collaborative user-read-playback-state playlist-modify-private playlist-modify-public"
 
     # Get the directory where the app.py script is located
     app_directory = os.path.dirname(os.path.abspath(__file__))
@@ -169,7 +184,7 @@ def fetch_playlist_tracks(sp, playlist_id):
     return tracks
 
 
-# Fetch and return all tracks from all playlists
+# Fetch and return all tracks from all selected playlists
 def fetch_all_playlist_tracks(sp):
     playlists = fetch_playlists(sp)
     all_tracks = []
@@ -225,12 +240,48 @@ def process_playlist_songs(
                 track, unique_song_ids, all_selected_songs, filtered_songs, sp
             )
 
+            filter_song(sp, track, theme_analysis, filtered_songs)
+
 
 # Checks if song is a duplicate, if not it adds it to a list
 def add_unique_song(track, unique_song_ids, all_selected_songs, filtered_songs, sp):
     if track["id"] not in unique_song_ids:
         unique_song_ids.add(track["id"])
-        all_selected_songs.append(f"{track['name']} by {track['artists'][0]['name']}")
+        all_selected_songs.append(
+            {"id": track["id"], "name": track["name"], "artists": track["artists"]}
+        )
+
+
+def new_playlist(sp, playlist_name, songs):
+    if not songs:
+        print("The song list is empty. No playlist created.")
+        return
+
+    # Extract song IDs from the song list
+    song_ids = [track["id"] for track in songs if "id" in track]
+
+    if not song_ids:
+        print("No valid song IDs found in the provided list. No playlist created.")
+        return
+
+    print("Creating playlist...")
+    # Get the current user's ID
+    user_id = sp.current_user()["id"]
+
+    # Create a new playlist
+    playlist = sp.user_playlist_create(
+        user=user_id,
+        name=playlist_name,
+        public=False,  # Set to True if you want the playlist to be public
+        description="Playlist created with Spotipy.",
+    )
+
+    # Add songs to the playlist
+    sp.playlist_add_items(playlist_id=playlist["id"], items=song_ids)
+
+    print(
+        f"Playlist '{playlist_name}' created and populated with {len(song_ids)} song(s)."
+    )
 
 
 if __name__ == "__main__":
