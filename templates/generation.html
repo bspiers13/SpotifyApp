@@ -1,0 +1,63 @@
+{% extends "base.html" %} {% block content %} {% if playlists %}
+<div class="main">
+  <form
+    action="/generate-playlist"
+    method="POST"
+    onsubmit="showLoadingMessage()"
+  >
+    <h2>Select Playlists:</h2>
+    <ul>
+      {% for playlist in playlists %}
+      <li class="playlist">
+        {% if playlist.image_url %}
+        <img src="{{ playlist.image_url }}" alt="Playlist Image" />
+        {% endif %}
+        <input
+          type="checkbox"
+          name="selected_playlists"
+          value="{{ playlist.id }}"
+          id="playlist_{{ loop.index }}"
+          checked
+        />
+        <label for="playlist_{{ loop.index }}">{{ playlist.name }}</label>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <!-- Input box for the theme -->
+    <label for="theme">Enter a theme (e.g., happy):</label>
+    <input type="text" id="theme" name="theme" placeholder="Enter theme" />
+    <button type="submit">Submit</button>
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+  </form>
+
+  <!-- Shows all collected songs -->
+  {% if songs %}
+  <div class="fetched-songs">
+    <h2>Fetched and Filtered Songs:</h2>
+    {% if theme %}
+    <p>Theme: <strong>{{ theme }}</strong></p>
+    {% endif %}
+    <ul class="song-list">
+      {% for song in songs %}
+      <li>{{ song }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Shows the songs featured in the newly generated playlist -->
+  {% if filtered_songs %}
+  <div class="generated-playlist">
+    <h2>Generated Playlist:</h2>
+    <ul class="song_list">
+      {% for song in filtered_songs %}
+      <li>{{ song }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endif %}{% endblock %}

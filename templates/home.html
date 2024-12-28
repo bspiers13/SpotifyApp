@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block content %}
+<div class="main">
+  <form action="/generation-tool" method="POST">
+    <button type="submit">Generate a Playlist</button>
+  </form>
+  <form action="/organisation-tool" method="POST">
+    <button type="submit">Organise a Playlist</button>
+  </form>
+  <form action="/download-tool" method="POST">
+    <button type="submit">Download a Playlist</button>
+  </form>
+</div>
+{% endblock %}

@@ -12,61 +12,79 @@ app = Flask(__name__)
 # Default page
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("home.html", is_home=True)
 
 
 # Collect user's saved playlists from Spotify
-@app.route("/fetch-playlists", methods=["POST"])
+@app.route("/generation-tool", methods=["POST"])
 def fetch_playlists_route():
     fetched_playlists = fetch_playlists(sp)
 
-    return render_template("index.html", playlists=fetched_playlists)
+    return render_template("generation.html", playlists=fetched_playlists)
 
 
 theme_analysis = None
 
 
 # Retrieve selected playlists from HTML, then collect songs from each playlist from Spotify
-@app.route("/submit-playlists", methods=["POST"])
+@app.route("/generate-playlist", methods=["POST"])
 def submit_playlists():
-    # Retrieve selected playlists from the form
-    selected_playlists = request.form.getlist("selected_playlists")
 
     # Retrieve the theme entered by the user
     theme = request.form.get("theme", "")
 
-    # Analyse theme
-    print("Analysing input")
-    analyse_input(theme, set_model())
+    print(theme)
+    # Retrieve selected playlists from the form
+    selected_playlists = request.form.getlist("selected_playlists")
 
-    # Fetch all playlists once to avoid redundant fetching
-    print("Fetching playlists...")
-    playlists = fetch_playlists(sp)
-    print("Playlists fetched!")
+    if theme != "" and selected_playlists != []:
+        # Analyse theme
+        print("Analysing input")
+        analyse_input(theme, set_model())
 
-    # Process selected playlists
-    print("Processing playlists...")
-    all_selected_songs, filtered_songs = process_selected_playlists(
-        sp, selected_playlists, playlists
-    )
-    print("Playlists processed!")
+        # Fetch all playlists once to avoid redundant fetching
+        print("Fetching playlists...")
+        playlists = fetch_playlists(sp)
+        print("Playlists fetched!")
 
-    new_playlist(sp, theme, filtered_songs)
-
-    all_selected_songs_text_formatted = []
-    for track in all_selected_songs:
-        all_selected_songs_text_formatted.append(
-            f"{track['name']} by {track['artists'][0]['name']}"
+        # Process selected playlists
+        print("Processing playlists...")
+        all_selected_songs, filtered_songs = process_selected_playlists(
+            sp, selected_playlists, playlists
         )
+        print("Playlists processed!")
 
-    # Return the updated page with the songs and theme
-    return render_template(
-        "index.html",
-        playlists=playlists,
-        selected=selected_playlists,
-        songs=all_selected_songs_text_formatted,
-        theme=theme,  # Pass the theme to the template
-    )
+        new_playlist(sp, theme, filtered_songs)
+
+        all_selected_songs_text_formatted = []
+        for track in all_selected_songs:
+            all_selected_songs_text_formatted.append(
+                f"{track['name']} by {track['artists'][0]['name']}"
+            )
+
+        if filtered_songs == []:
+            filtered_songs = [
+                "No songs could be filtered to fit the theme. This may be from none of the collected songs fitting the theme, or because spotify has disabled the audio_features necessary for sentiment analysis"
+            ]
+
+        # Return the updated page with the songs and theme
+        return render_template(
+            "generation.html",
+            playlists=playlists,
+            selected=selected_playlists,
+            songs=all_selected_songs_text_formatted,
+            theme=theme,
+            filtered_songs=filtered_songs,
+        )
+    else:
+        if theme == "":
+            error = "Please enter a theme"
+        elif selected_playlists == []:
+            error = "Please select at least one playlist"
+        fetched_playlists = fetch_playlists(sp)
+        return render_template(
+            "generation.html", playlists=fetched_playlists, error=error
+        )
 
 
 @app.route("/fetch-songs", methods=["POST"])
@@ -81,7 +99,7 @@ def submit():
     all_songs = liked_songs + playlist_tracks
 
     # Pass all songs to the template
-    return render_template("index.html", songs=all_songs)
+    return render_template("generation.html", songs=all_songs)
 
 
 # Load environment variables from .env file

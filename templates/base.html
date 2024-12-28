@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Spotify Playlist Tools{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+    <script>
+      function showLoadingMessage() {
+        // Create the loading message
+        const loadingMessage = document.createElement("p");
+        loadingMessage.textContent = "Loading...";
+        loadingMessage.className = "loading";
+        loadingMessage.id = "loadingMessage";
+
+        // Append the loading message to the form
+        const form = document.querySelector(
+          "form[action='/generate-playlist']"
+        );
+        form.appendChild(loadingMessage);
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <h1>Spotify Playlist Tools</h1>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>
