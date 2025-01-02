@@ -15,7 +15,7 @@ The app integrates with Spotify to fetch saved songs and playlists including the
 
 - Fetches user's saved songs and playlists from Spotify.
 - Analyzes a user-provided theme using sentiment analysis.
-- Filters songs based on sentiment to match the theme.
+- Filters songs based on sentiment using their audio_features (valence, tempo, etc.) to match the theme.
 - Creates and adds the newly generated playlist to the user's Spotify account.
 
 ---
@@ -33,10 +33,10 @@ The app integrates with Spotify to fetch saved songs and playlists including the
 
 ## Setup
 
-### 1. Clone the repository
+1. Clone the repository
 
-### 2. Get API credentials from Spotify Dev account, and store them as SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env within the directory
+2. Get API credentials from Spotify Dev account, and store them as SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in .env within the directory
 
-### 3. Run main.py
+3. Run main.py
 
-### 4. Open 127.0.0.1:5000 in your browser
+4. Open 127.0.0.1:5000 in your browser
